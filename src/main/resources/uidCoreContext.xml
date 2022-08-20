@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context
+           http://www.springframework.org/schema/context/spring-context.xsd
+           http://www.springframework.org/schema/aop 
+           http://www.springframework.org/schema/aop/spring-aop.xsd
+           http://www.springframework.org/schema/tx		
+           http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+	<import resource="file:${uidbank.properties.dir}/commonsConfig.xml"/>
+	<import resource="classpath*:commonsThreadPoolConfig.xml" />
+
+	<context:annotation-config/>
+	<aop:aspectj-autoproxy />
+	<aop:config />
+
+	<bean id="uidDataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		destroy-method="close">
+		<property name="driverClassName" value="${uidbank.dbms.driver}" />
+		<property name="url" value="jdbc:${uidbank.dbms}://${uidbank.dbms.host}:${uidbank.dbms.port}/${uidbank.dbms.dbname}" />
+		<property name="username" value="${uidbank.dbms.user}" />
+		<property name="password" value="${uidbank.dbms.pwd}" />
+		<property name="maxActive" value="30" />
+        <property name="removeAbandoned" value="true" />
+        <property name="removeAbandonedTimeout" value="60" />
+        <property name="testOnBorrow" value="true" />
+        <property name="logAbandoned" value="true" />
+        <property name="maxWait" value="60000" />	
+	</bean>
+
+	<bean id="uidTxManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="uidDataSource" />
+	</bean>
+
+	<tx:advice id="uidTxAdvice" transaction-manager="uidTxManager">
+		<tx:attributes>
+			<tx:method name="save*" propagation="REQUIRED" />
+			<tx:method name="modify*" propagation="REQUIRED" />
+			<tx:method name="remove*" propagation="REQUIRED" />
+			<tx:method name="fillBank" propagation="REQUIRED" />
+		</tx:attributes>
+	</tx:advice>
+
+	<aop:config>
+		<aop:pointcut id="uidTxPointCut" expression="execution(* otc.framework.uid.common.biz.*.*(..))" />
+		<aop:advisor pointcut-ref="uidTxPointCut" advice-ref="uidTxAdvice" />
+	</aop:config>
+
+	<bean id="uidDao" class="otc.framework.uid.core.dao.impl.UidDaoImpl">
+		<property name="jdbcTemplate">
+			<bean class="org.springframework.jdbc.core.JdbcTemplate">
+				<constructor-arg ref="uidDataSource" />
+			</bean>
+		</property>
+	</bean>
+
+</beans>
